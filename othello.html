@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a1f12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>オセロ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700;900&family=Zen+Kaku+Gothic+New:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- ========== AdMob ========== -->
+<!-- 本番公開時はこのscriptタグのdata-ad-clientを実際のAdMob Publisher IDに変更してください -->
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
+<!-- TWA経由のGoogle Playアプリの場合、AdMob SDKはAndroidネイティブ側で組み込みます（後述のTWA手順参照） -->
+
+<style>
+:root {
+  --bg:        #0a1f12;
+  --bg2:       #0f2d1a;
+  --bg3:       #162e1c;
+  --cell:      #1a4a28;
+  --cell-dark: #143d20;
+  --border:    #0d2e18;
+  --green:     #2d7a45;
+  --green2:    #3d9a57;
+  --gold:      #c9a84c;
+  --gold2:     #e8c96a;
+  --cream:     #f0e6c8;
+  --muted:     #5a8a68;
+  --red:       #8b2020;
+  --blue:      #1a4a7a;
+  --radius:    10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  height: 100%; width: 100%;
+  background: var(--bg);
+  color: var(--cream);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* ===== SCREENS ===== */
+.screen { display: none; flex-direction: column; height: 100%; width: 100%; position: absolute; top: 0; left: 0; }
+.screen.active { display: flex; }
+
+/* ===== MENU ===== */
+#menu {
+  background: radial-gradient(ellipse at 30% 20%, #1a4030 0%, var(--bg) 60%);
+  align-items: center; justify-content: center;
+  gap: 0;
+  padding: 20px;
+}
+.menu-title {
+  font-family: 'Noto Serif JP', serif;
+  font-size: clamp(42px, 12vw, 64px);
+  font-weight: 900;
+  color: var(--gold2);
+  letter-spacing: 12px;
+  text-shadow: 0 0 40px rgba(201,168,76,0.4), 2px 4px 0 #000;
+  margin-bottom: 4px;
+}
+.menu-sub {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 5px;
+  margin-bottom: 40px;
+}
+.menu-board-preview {
+  display: grid;
+  grid-template-columns: repeat(4, 18px);
+  gap: 2px;
+  margin-bottom: 40px;
+  opacity: 0.4;
+}
+.prev-cell {
+  width: 18px; height: 18px;
+  background: var(--cell);
+  border-radius: 2px;
+}
+.prev-cell.b { background: radial-gradient(circle at 40% 35%, #555, #000); border-radius: 50%; }
+.prev-cell.w { background: radial-gradient(circle at 40% 35%, #fff, #bbb); border-radius: 50%; }
+
+.section-label {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  align-self: flex-start;
+  width: 100%;
+  max-width: 360px;
+}
+.level-display {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--gold2);
+  letter-spacing: 4px;
+  margin: 6px 0 12px;
+}
+.level-label {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+.level-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: 8px;
+}
+.level-btn {
+  width: 44px; height: 44px;
+  border: 1px solid var(--green);
+  background: var(--bg2);
+  color: var(--cream);
+  font-size: 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+  -webkit-user-select: none; user-select: none;
+}
+.level-btn:active { background: var(--green); }
+input[type=range] {
+  flex: 1;
+  -webkit-appearance: none;
+  height: 6px;
+  background: var(--bg3);
+  border-radius: 3px;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--gold2);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--green) 0%, var(--green) var(--pct, 50%), var(--bg3) var(--pct, 50%)); border-radius: 3px; }
+
+.start-btn {
+  width: 100%; max-width: 360px;
+  padding: 18px;
+  background: linear-gradient(135deg, var(--green2), var(--green));
+  border: none; border-radius: var(--radius);
+  color: #fff;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(45,122,69,0.4);
+  margin-top: 20px;
+  transition: transform 0.1s, box-shadow 0.1s;
+  -webkit-user-select: none; user-select: none;
+}
+.start-btn:active { transform: scale(0.97); box-shadow: 0 2px 10px rgba(45,122,69,0.3); }
+
+/* ===== GAME ===== */
+#game {
+  background: var(--bg);
+  padding: 0;
+}
+.game-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px 8px;
+  gap: 8px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+.header-back {
+  width: 36px; height: 36px;
+  border: 1px solid #2a4a30;
+  background: none;
+  color: var(--muted);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.header-title {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  flex: 1;
+  text-align: center;
+}
+.header-spacer { width: 36px; }
+
+/* Score */
+.score-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+}
+.score-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: var(--bg2);
+  transition: border-color 0.3s, background 0.3s;
+}
+.score-card.active {
+  border-color: var(--green2);
+  background: var(--bg3);
+}
+.score-disc {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 1px 2px 4px rgba(0,0,0,0.5);
+}
+.score-disc.black { background: radial-gradient(circle at 38% 35%, #555, #000); }
+.score-disc.white { background: radial-gradient(circle at 38% 35%, #fff, #ccc); }
+.score-info { display: flex; flex-direction: column; }
+.score-name { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+.score-num {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--gold2);
+  line-height: 1;
+}
+.score-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.status-text {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-align: center;
+  max-width: 70px;
+  line-height: 1.3;
+}
+.thinking-dot {
+  display: inline-block;
+  animation: blink 1s infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* Board */
+.board-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+}
+#board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: min(calc(100vw - 16px), calc(100vh - 280px));
+  height: min(calc(100vw - 16px), calc(100vh - 280px));
+  background: #0d2e18;
+  border: 3px solid #0a1f10;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+.cell {
+  background: var(--cell);
+  border: 0.5px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  cursor: pointer;
+  -webkit-user-select: none; user-select: none;
+}
+.cell:active { background: #1e5530; }
+.cell.last-move { background: #1e5a30; }
+.disc {
+  width: 82%; height: 82%;
+  border-radius: 50%;
+  box-shadow: 1px 2px 5px rgba(0,0,0,0.6);
+  transition: transform 0.15s;
+}
+.disc.black { background: radial-gradient(circle at 38% 32%, #4a4a4a, #000 70%); }
+.disc.white { background: radial-gradient(circle at 38% 32%, #ffffff, #d0d0d0 70%); }
+.disc.flip { animation: flipDisc 0.2s ease-out; }
+@keyframes flipDisc {
+  0%   { transform: scaleX(1); }
+  50%  { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+.hint {
+  width: 26%;height: 26%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.28);
+  pointer-events: none;
+}
+
+/* Actions */
+.action-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 6px 10px 8px;
+}
+.act-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--bg2);
+  color: var(--muted);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: opacity 0.2s, background 0.15s;
+  -webkit-user-select: none; user-select: none;
+}
+.act-btn:disabled { opacity: 0.3; cursor: default; }
+.act-btn.undo  { border-color: #1a3a6a; color: #4a80c0; }
+.act-btn.resign{ border-color: #5a1515; color: #c04040; }
+.act-btn.retry { border-color: #1a5a2a; color: var(--green2); }
+.act-btn:not(:disabled):active { filter: brightness(1.3); }
+.act-icon { font-size: 22px; }
+.act-sub { font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+
+/* Ad banner placeholder */
+.ad-banner {
+  width: 100%;
+  min-height: 50px;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  color: #2a4a2a;
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
+/* Real AdSense/AdMob ins element */
+.ad-banner ins { display: block !important; }
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 100;
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--green);
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 100%; max-width: 320px;
+  text-align: center;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.7);
+}
+.modal-title {
+  font-family: 'Noto Serif JP', serif;
+  font-size: 22px; font-weight: 700;
+  color: var(--gold2);
+  margin-bottom: 12px;
+}
+.modal-msg { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
+.modal-btns { display: flex; gap: 10px; }
+.modal-btn {
+  flex: 1; padding: 14px;
+  border-radius: 10px; border: none;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+  -webkit-user-select: none; user-select: none;
+}
+.modal-btn:active { filter: brightness(1.2); }
+.modal-btn.cancel { background: var(--bg3); color: var(--muted); border: 1px solid #2a4a2a; }
+.modal-btn.confirm { background: linear-gradient(135deg, var(--green2), var(--green)); color: #fff; }
+.modal-btn.confirm.red { background: linear-gradient(135deg, #c04040, #8b2020); }
+
+/* Ad watching simulation */
+.ad-watch {
+  display: none; position: fixed; inset: 0;
+  background: #000;
+  z-index: 200;
+  align-items: center; justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+.ad-watch.open { display: flex; }
+.ad-progress { width: 200px; height: 4px; background: #222; border-radius: 2px; overflow: hidden; }
+.ad-progress-bar { height: 100%; width: 0; background: var(--gold2); transition: width 0.1s linear; border-radius: 2px; }
+.ad-label { color: var(--muted); font-size: 12px; letter-spacing: 2px; }
+.ad-skip-btn {
+  padding: 10px 24px;
+  background: var(--green);
+  border: none; border-radius: 8px;
+  color: #fff; font-size: 14px; font-weight: 700;
+  cursor: pointer; display: none;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+}
+.ad-countdown { color: var(--muted); font-size: 13px; }
+
+/* Result overlay */
+.result-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.82);
+  z-index: 90;
+  align-items: center; justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+.result-overlay.open { display: flex; }
+.result-title {
+  font-family: 'Noto Serif JP', serif;
+  font-size: clamp(28px, 8vw, 42px);
+  font-weight: 900;
+  color: var(--gold2);
+  text-shadow: 0 0 30px rgba(201,168,76,0.5);
+  letter-spacing: 4px;
+}
+.result-score { font-size: 20px; color: var(--cream); letter-spacing: 2px; margin: 8px 0; }
+.result-btns { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 280px; margin-top: 8px; }
+.result-btn {
+  padding: 15px;
+  border-radius: 10px; border: none;
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-size: 16px; font-weight: 700; letter-spacing: 2px;
+  cursor: pointer;
+  -webkit-user-select: none; user-select: none;
+}
+.result-btn.primary { background: linear-gradient(135deg, var(--green2), var(--green)); color: #fff; }
+.result-btn.secondary { background: var(--bg2); color: var(--muted); border: 1px solid #2a4a2a; }
+</style>
+</head>
+<body>
+
+<!-- ============ MENU SCREEN ============ -->
+<div id="menu" class="screen active">
+  <div class="menu-title">OTHELLO</div>
+  <div class="menu-sub">オセロ</div>
+  <div class="menu-board-preview">
+    <div class="prev-cell"></div><div class="prev-cell"></div><div class="prev-cell"></div><div class="prev-cell"></div>
+    <div class="prev-cell"></div><div class="prev-cell w"></div><div class="prev-cell b"></div><div class="prev-cell"></div>
+    <div class="prev-cell"></div><div class="prev-cell b"></div><div class="prev-cell w"></div><div class="prev-cell"></div>
+    <div class="prev-cell"></div><div class="prev-cell"></div><div class="prev-cell"></div><div class="prev-cell"></div>
+  </div>
+
+  <div class="section-label">CPU レベル</div>
+  <div class="level-display" id="lvDisplay">LV <span id="lvNum">15</span></div>
+  <div class="level-label" id="lvLabel">中級</div>
+  <div class="level-row">
+    <button class="level-btn" id="lvDown">－</button>
+    <input type="range" id="lvSlider" min="1" max="30" value="15">
+    <button class="level-btn" id="lvUp">＋</button>
+  </div>
+
+  <button class="start-btn" id="startBtn">ゲームスタート</button>
+</div>
+
+<!-- ============ GAME SCREEN ============ -->
+<div id="game" class="screen">
+  <div class="game-header">
+    <button class="header-back" id="backBtn">←</button>
+    <div class="header-title" id="headerTitle">CPU LV 15</div>
+    <div class="header-spacer"></div>
+  </div>
+
+  <div class="score-bar">
+    <div class="score-card" id="scoreBlack">
+      <div class="score-disc black"></div>
+      <div class="score-info">
+        <div class="score-name">あなた</div>
+        <div class="score-num" id="blackCount">2</div>
+      </div>
+    </div>
+    <div class="score-mid">
+      <div class="status-text" id="statusText">あなたの番</div>
+    </div>
+    <div class="score-card" id="scoreWhite">
+      <div class="score-disc white"></div>
+      <div class="score-info">
+        <div class="score-name">CPU</div>
+        <div class="score-num" id="whiteCount">2</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="board-wrap">
+    <div id="board"></div>
+  </div>
+
+  <div class="action-bar">
+    <button class="act-btn undo" id="undoBtn">
+      <span class="act-icon">↩</span>
+      <span>待った</span>
+      <span class="act-sub">広告を見る</span>
+    </button>
+    <button class="act-btn resign" id="resignBtn">
+      <span class="act-icon">🏳</span>
+      <span>投了</span>
+      <span class="act-sub">ゲームを終える</span>
+    </button>
+    <button class="act-btn retry" id="retryBtn" disabled>
+      <span class="act-icon">↺</span>
+      <span>再挑戦</span>
+      <span class="act-sub">広告を見る</span>
+    </button>
+  </div>
+
+  <div class="ad-banner" id="adBanner">
+    <!-- AdMob banner will render here (TWA) or AdSense (Web) -->
+    <!-- Real ad code example:
+    <ins class="adsbygoogle"
+      style="display:block"
+      data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+      data-ad-slot="XXXXXXXXXX"
+      data-ad-format="auto"
+      data-full-width-responsive="true"></ins>
+    -->
+    <span>広告エリア</span>
+  </div>
+</div>
+
+<!-- ============ MODAL ============ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" id="modalCancel">キャンセル</button>
+      <button class="modal-btn confirm" id="modalConfirm"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ AD WATCH SIMULATION ============ -->
+<div class="ad-watch" id="adWatch">
+  <div class="ad-label">広告を再生中...</div>
+  <div class="ad-progress"><div class="ad-progress-bar" id="adBar"></div></div>
+  <div class="ad-countdown" id="adCountdown">5秒後にスキップ可能</div>
+  <button class="ad-skip-btn" id="adSkip">スキップ →</button>
+</div>
+
+<!-- ============ RESULT OVERLAY ============ -->
+<div class="result-overlay" id="resultOverlay">
+  <div class="result-title" id="resultTitle">あなたの勝ち！</div>
+  <div class="result-score" id="resultScore">黒 32 - 白 32</div>
+  <div class="result-btns">
+    <button class="result-btn primary" id="resultRetry">再挑戦（広告を見る）</button>
+    <button class="result-btn secondary" id="resultMenu">メニューへ</button>
+  </div>
+</div>
+
+<script>
+// ===================================================
+//  GAME ENGINE
+// ===================================================
+const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const SIZE = 8;
+const B = 1, W = -1, E = 0;
+
+function emptyBoard() {
+  const b = Array.from({length:SIZE}, () => new Int8Array(SIZE));
+  b[3][3]=W; b[3][4]=B; b[4][3]=B; b[4][4]=W;
+  return b;
+}
+function cloneBoard(b) { return b.map(r => r.slice()); }
+
+function wouldFlip(board, r, c, player) {
+  if (board[r][c] !== E) return [];
+  const flips = [];
+  for (const [dr,dc] of DIRS) {
+    const line = [];
+    let nr=r+dr, nc=c+dc;
+    while (nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&board[nr][nc]===-player) {
+      line.push([nr,nc]); nr+=dr; nc+=dc;
+    }
+    if (line.length && nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&board[nr][nc]===player) {
+      flips.push(...line);
+    }
+  }
+  return flips;
+}
+
+function validMoves(board, player) {
+  const moves = [];
+  for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+    if (board[r][c]===E && wouldFlip(board,r,c,player).length) moves.push([r,c]);
+  }
+  return moves;
+}
+
+function applyMove(board, r, c, player) {
+  const flips = wouldFlip(board,r,c,player);
+  board[r][c] = player;
+  for (const [fr,fc] of flips) board[fr][fc] = player;
+  return flips;
+}
+
+function countDiscs(board) {
+  let b=0, w=0;
+  for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+    if (board[r][c]===B) b++;
+    else if (board[r][c]===W) w++;
+  }
+  return {b, w};
+}
+
+// ===================================================
+//  AI  (Minimax + Alpha-Beta)
+// ===================================================
+const POS_WEIGHT = [
+  [100,-20, 10,  5,  5, 10,-20,100],
+  [-20,-50, -2, -2, -2, -2,-50,-20],
+  [ 10, -2,  5,  2,  2,  5, -2, 10],
+  [  5, -2,  2,  1,  1,  2, -2,  5],
+  [  5, -2,  2,  1,  1,  2, -2,  5],
+  [ 10, -2,  5,  2,  2,  5, -2, 10],
+  [-20,-50, -2, -2, -2, -2,-50,-20],
+  [100,-20, 10,  5,  5, 10,-20,100],
+];
+
+function evaluate(board, player) {
+  let score = 0;
+  const opp = -player;
+  let pc=0, oc=0;
+  for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+    if (board[r][c]===player)      { score += POS_WEIGHT[r][c]; pc++; }
+    else if (board[r][c]===opp)    { score -= POS_WEIGHT[r][c]; oc++; }
+  }
+  const myM = validMoves(board,player).length;
+  const opM = validMoves(board,opp).length;
+  if (myM+opM>0) score += 10*(myM-opM);
+  const total = pc+oc;
+  if (total>50) score += 3*(pc-oc);
+  return score;
+}
+
+function alphaBeta(board, depth, alpha, beta, player, rootPlayer) {
+  if (depth===0) return evaluate(board, rootPlayer);
+  const moves = validMoves(board, player);
+  if (!moves.length) {
+    const opp = -player;
+    const oppMoves = validMoves(board, opp);
+    if (!oppMoves.length) {
+      const {b,w} = countDiscs(board);
+      const pc = rootPlayer===B?b:w, oc = rootPlayer===B?w:b;
+      return pc>oc?100000:pc<oc?-100000:0;
+    }
+    return alphaBeta(board, depth-1, alpha, beta, opp, rootPlayer);
+  }
+  if (player===rootPlayer) {
+    let val=-Infinity;
+    for (const [r,c] of moves) {
+      const nb = cloneBoard(board);
+      applyMove(nb,r,c,player);
+      val = Math.max(val, alphaBeta(nb,depth-1,alpha,beta,-player,rootPlayer));
+      alpha = Math.max(alpha,val);
+      if (alpha>=beta) break;
+    }
+    return val;
+  } else {
+    let val=Infinity;
+    for (const [r,c] of moves) {
+      const nb = cloneBoard(board);
+      applyMove(nb,r,c,player);
+      val = Math.min(val, alphaBeta(nb,depth-1,alpha,beta,-player,rootPlayer));
+      beta = Math.min(beta,val);
+      if (alpha>=beta) break;
+    }
+    return val;
+  }
+}
+
+function getDepth(level) {
+  if (level<=3) return 0;
+  if (level<=8) return 1;
+  if (level<=10) return 2;
+  if (level<=15) return 3;
+  if (level<=20) return 4;
+  if (level<=25) return 5;
+  return 6;
+}
+function getErrorRate(level) {
+  if (level>=28) return 0;
+  return (30-level)/30*0.35;
+}
+
+function getBestMove(board, player, level) {
+  const moves = validMoves(board, player);
+  if (!moves.length) return null;
+  if (level<=3) return moves[Math.floor(Math.random()*moves.length)];
+
+  const err = getErrorRate(level);
+  if (Math.random()<err) return moves[Math.floor(Math.random()*moves.length)];
+
+  const depth = getDepth(level);
+  if (depth<=1) {
+    // greedy
+    let best=-Infinity, bestMove=moves[0];
+    for (const [r,c] of moves) {
+      const nb=cloneBoard(board); applyMove(nb,r,c,player);
+      const s=evaluate(nb,player);
+      if(s>best){best=s;bestMove=[r,c];}
+    }
+    return bestMove;
+  }
+
+  let best=-Infinity, bestMove=moves[0];
+  for (const [r,c] of moves) {
+    const nb=cloneBoard(board); applyMove(nb,r,c,player);
+    const s=alphaBeta(nb,depth-1,-Infinity,Infinity,-player,player);
+    if(s>best){best=s;bestMove=[r,c];}
+  }
+  return bestMove;
+}
+
+// ===================================================
+//  GAME STATE
+// ===================================================
+let state = {
+  board: null,
+  current: B,          // B = human (black), W = cpu (white)
+  cpuLevel: 15,
+  history: [],         // array of board snapshots
+  gameOver: false,
+  resigned: false,
+  thinking: false,
+};
+
+function levelLabel(lv) {
+  if (lv<=3)  return '入門';
+  if (lv<=8)  return '初級';
+  if (lv<=15) return '中級';
+  if (lv<=22) return '上級';
+  if (lv<=27) return '高段';
+  return '最強';
+}
+
+// ===================================================
+//  UI HELPERS
+// ===================================================
+const $ = id => document.getElementById(id);
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+
+// Level slider
+const slider = $('lvSlider');
+const lvNum = $('lvNum');
+const lvLabel_ = $('lvLabel');
+function updateLvUI() {
+  const lv = +slider.value;
+  lvNum.textContent = lv;
+  lvLabel_.textContent = levelLabel(lv);
+  const pct = (lv-1)/29*100;
+  slider.style.setProperty('--pct', pct+'%');
+}
+slider.addEventListener('input', updateLvUI);
+$('lvDown').addEventListener('click', () => { if(+slider.value>1){slider.value--;updateLvUI();}});
+$('lvUp').addEventListener('click',   () => { if(+slider.value<30){slider.value++;updateLvUI();}});
+updateLvUI();
+
+// ===================================================
+//  BOARD RENDERING
+// ===================================================
+const boardEl = $('board');
+function buildBoard() {
+  boardEl.innerHTML = '';
+  for (let r=0;r<SIZE;r++) for (let c=0;c<SIZE;c++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.r = r; cell.dataset.c = c;
+    cell.addEventListener('click', onCellClick);
+    boardEl.appendChild(cell);
+  }
+}
+
+function renderBoard(hints=[]) {
+  const hintSet = new Set(hints.map(([r,c])=>r*8+c));
+  const cells = boardEl.querySelectorAll('.cell');
+  const {b,w} = countDiscs(state.board);
+  $('blackCount').textContent = b;
+  $('whiteCount').textContent = w;
+
+  cells.forEach(cell => {
+    const r=+cell.dataset.r, c=+cell.dataset.c;
+    const v = state.board[r][c];
+    cell.innerHTML = '';
+    cell.className = 'cell';
+
+    if (v!==E) {
+      const disc = document.createElement('div');
+      disc.className = 'disc '+(v===B?'black':'white');
+      cell.appendChild(disc);
+    } else if (hintSet.has(r*8+c)) {
+      const h = document.createElement('div');
+      h.className = 'hint';
+      cell.appendChild(h);
+    }
+  });
+}
+
+function flashFlips(flips) {
+  flips.forEach(([r,c]) => {
+    const idx = r*8+c;
+    const disc = boardEl.querySelectorAll('.cell')[idx].querySelector('.disc');
+    if (disc) disc.classList.add('flip');
+  });
+}
+
+// ===================================================
+//  GAME LOGIC
+// ===================================================
+function startGame(level) {
+  state.board    = emptyBoard();
+  state.current  = B;
+  state.cpuLevel = level;
+  state.history  = [];
+  state.gameOver = false;
+  state.resigned = false;
+  state.thinking = false;
+
+  $('headerTitle').textContent = `CPU LV ${level}`;
+  $('undoBtn').disabled  = false;
+  $('resignBtn').disabled = false;
+  $('retryBtn').disabled  = true;
+  $('resultOverlay').classList.remove('open');
+
+  buildBoard();
+  const hints = validMoves(state.board, B);
+  renderBoard(hints);
+  updateStatus();
+  updateScoreCards();
+}
+
+function updateStatus() {
+  const el = $('statusText');
+  if (state.gameOver) { el.textContent = '終了'; return; }
+  if (state.thinking) {
+    el.innerHTML = 'CPU<br><span class="thinking-dot">●</span>';
+    return;
+  }
+  el.textContent = state.current===B ? 'あなたの番' : 'CPUの番';
+}
+
+function updateScoreCards() {
+  $('scoreBlack').classList.toggle('active', state.current===B && !state.gameOver && !state.thinking);
+  $('scoreWhite').classList.toggle('active', state.current===W || state.thinking);
+}
+
+function onCellClick(e) {
+  if (state.gameOver || state.thinking || state.current!==B) return;
+  const r=+e.currentTarget.dataset.r, c=+e.currentTarget.dataset.c;
+  const flips = wouldFlip(state.board,r,c,B);
+  if (!flips.length) return;
+
+  // Save history
+  state.history.push(cloneBoard(state.board));
+
+  applyMove(state.board,r,c,B);
+  renderBoard([]);
+  setTimeout(()=>flashFlips(flips),0);
+
+  afterMove();
+}
+
+function afterMove() {
+  const opp = -state.current;
+  const oppMoves = validMoves(state.board, opp);
+  const myMoves  = validMoves(state.board, state.current);
+
+  if (oppMoves.length) {
+    state.current = opp;
+  } else if (myMoves.length) {
+    // pass
+  } else {
+    endGame();
+    return;
+  }
+
+  updateStatus();
+  updateScoreCards();
+
+  if (state.current===W) {
+    scheduleCPU();
+  } else {
+    const hints = validMoves(state.board, B);
+    renderBoard(hints);
+  }
+}
+
+function scheduleCPU() {
+  state.thinking = true;
+  updateStatus(); updateScoreCards();
+  renderBoard([]);
+  setTimeout(doCPUMove, 500);
+}
+
+function doCPUMove() {
+  if (state.gameOver) return;
+  const move = getBestMove(state.board, W, state.cpuLevel);
+  if (!move) { afterMove(); return; }
+
+  state.history.push(cloneBoard(state.board));
+  const flips = applyMove(state.board, move[0], move[1], W);
+  state.thinking = false;
+  state.current = B;
+  renderBoard([]);
+  setTimeout(()=>flashFlips(flips),0);
+  setTimeout(()=>{
+    const oppMoves = validMoves(state.board,B);
+    const myMoves  = validMoves(state.board,W);
+    if (!oppMoves.length && !myMoves.length) { endGame(); return; }
+    if (!oppMoves.length) { scheduleCPU(); return; }
+    const hints = validMoves(state.board, B);
+    renderBoard(hints);
+    updateStatus(); updateScoreCards();
+  }, 200);
+}
+
+function endGame(resigned=false) {
+  state.gameOver = true;
+  state.resigned = resigned;
+  $('undoBtn').disabled  = true;
+  $('resignBtn').disabled = true;
+  $('retryBtn').disabled  = false;
+  updateStatus(); updateScoreCards();
+
+  const {b,w} = countDiscs(state.board);
+  let title, score;
+  if (resigned) {
+    title = 'CPU の勝ち...';
+    score = `投了 | 黒 ${b} - 白 ${w}`;
+  } else if (b>w) {
+    title = 'あなたの勝ち！🎉';
+    score = `黒 ${b} - 白 ${w}`;
+  } else if (w>b) {
+    title = 'CPU の勝ち...';
+    score = `黒 ${b} - 白 ${w}`;
+  } else {
+    title = '引き分け！';
+    score = `黒 ${b} - 白 ${w}`;
+  }
+  $('resultTitle').textContent = title;
+  $('resultScore').textContent = score;
+
+  setTimeout(()=>$('resultOverlay').classList.add('open'), 800);
+}
+
+// ===================================================
+//  MODAL
+// ===================================================
+function showModal({title, msg, confirmLabel, confirmClass='', onConfirm}) {
+  $('modalTitle').textContent = title;
+  $('modalMsg').textContent   = msg;
+  $('modalConfirm').textContent = confirmLabel;
+  $('modalConfirm').className = 'modal-btn confirm '+(confirmClass||'');
+  $('modalOverlay').classList.add('open');
+  const btn = $('modalConfirm').cloneNode(true);
+  $('modalConfirm').replaceWith(btn);
+  btn.addEventListener('click', () => {
+    $('modalOverlay').classList.remove('open');
+    onConfirm();
+  });
+}
+$('modalCancel').addEventListener('click', ()=>$('modalOverlay').classList.remove('open'));
+
+// ===================================================
+//  AD SIMULATION  (Replace with real AdMob/AdSense)
+// ===================================================
+function watchAd(onComplete) {
+  const adEl   = $('adWatch');
+  const bar    = $('adBar');
+  const skip   = $('adSkip');
+  const countEl= $('adCountdown');
+
+  adEl.classList.add('open');
+  skip.style.display='none';
+  bar.style.width='0';
+
+  let elapsed = 0;
+  const TOTAL  = 15000; // 15s ad
+  const SKIP_AT= 5000;  // skip after 5s
+
+  const interval = setInterval(()=>{
+    elapsed += 200;
+    bar.style.width = (elapsed/TOTAL*100)+'%';
+    const remain = Math.max(0, Math.ceil((SKIP_AT-elapsed)/1000));
+    if (elapsed < SKIP_AT) {
+      countEl.textContent = `${remain}秒後にスキップ可能`;
+    } else {
+      countEl.textContent = '';
+      skip.style.display='block';
+    }
+    if (elapsed>=TOTAL) {
+      clearInterval(interval);
+      adEl.classList.remove('open');
+      onComplete();
+    }
+  }, 200);
+
+  skip.onclick = () => {
+    if (elapsed<SKIP_AT) return;
+    clearInterval(interval);
+    adEl.classList.remove('open');
+    onComplete();
+  };
+}
+
+// ===================================================
+//  BUTTONS
+// ===================================================
+$('startBtn').addEventListener('click', ()=>{
+  const lv = +slider.value;
+  showScreen('game');
+  startGame(lv);
+});
+
+$('backBtn').addEventListener('click', ()=>{
+  if (!state.gameOver) {
+    showModal({
+      title: 'メニューへ',
+      msg: '現在のゲームを終了してメニューへ戻りますか？',
+      confirmLabel: '戻る',
+      onConfirm: ()=>{ showScreen('menu'); }
+    });
+  } else {
+    showScreen('menu');
+  }
+});
+
+$('undoBtn').addEventListener('click', ()=>{
+  if (state.gameOver || state.thinking) return;
+  if (state.history.length<2) {
+    showModal({title:'待った', msg:'戻せる手がありません。', confirmLabel:'OK', onConfirm:()=>{}});
+    return;
+  }
+  showModal({
+    title: '待った',
+    msg: '広告を見ると1手戻すことができます（CPU手番分も含め2手戻します）。',
+    confirmLabel: '広告を見る',
+    onConfirm: ()=>{
+      watchAd(()=>{
+        // undo 2 moves (player + cpu)
+        if (state.history.length>0) state.board = state.history.pop();
+        if (state.history.length>0) state.board = state.history.pop();
+        state.current = B;
+        state.thinking = false;
+        const hints = validMoves(state.board, B);
+        renderBoard(hints);
+        const {b,w}=countDiscs(state.board);
+        $('blackCount').textContent=b; $('whiteCount').textContent=w;
+        updateStatus(); updateScoreCards();
+      });
+    }
+  });
+});
+
+$('resignBtn').addEventListener('click', ()=>{
+  if (state.gameOver || state.thinking) return;
+  showModal({
+    title: '投了',
+    msg: '本当に投了しますか？',
+    confirmLabel: '投了する',
+    confirmClass: 'red',
+    onConfirm: ()=>endGame(true)
+  });
+});
+
+$('retryBtn').addEventListener('click', ()=>{
+  if (!state.gameOver) return;
+  doRetry();
+});
+$('resultRetry').addEventListener('click', doRetry);
+$('resultMenu').addEventListener('click', ()=>{
+  $('resultOverlay').classList.remove('open');
+  showScreen('menu');
+});
+
+function doRetry() {
+  $('resultOverlay').classList.remove('open');
+  showModal({
+    title: '再挑戦',
+    msg: '広告を見ると同じ設定でもう一度プレイできます。',
+    confirmLabel: '広告を見る',
+    onConfirm: ()=>{
+      watchAd(()=>startGame(state.cpuLevel));
+    }
+  });
+}
+
+// ===================================================
+//  SERVICE WORKER registration (PWA)
+// ===================================================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
