@@ -45,8 +45,6 @@ html, body {
   font-family: 'Zen Kaku Gothic New', sans-serif;
   overflow: hidden;
   touch-action: manipulation;
-  /* 画面の一番下に50ピクセル分の空き地を作る */
-    padding-bottom: 50px !important;
 }
 
 /* ===== SCREENS ===== */
@@ -459,6 +457,22 @@ input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(t
 </style>
 </head>
 <body>
+
+<audio id="bgm" src="othello.mp3" loop></audio>
+
+<script>
+window.addEventListener("DOMContentLoaded", () => {
+  const audio = document.getElementById("bgm");
+
+  audio.volume = 0.3;
+
+  const startAudio = () => {
+    audio.play().catch(() => {});
+  };
+
+  document.body.addEventListener("click", startAudio, { once: true });
+});
+</script>
 
 <!-- ============ MENU SCREEN ============ -->
 <div id="menu" class="screen active">
